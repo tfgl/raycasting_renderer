@@ -1,0 +1,10 @@
+[dependencies.glfw]
+command = [ '-lglfw' ]
+
+[dependencies.opengl]
+command = [ '-lGL' ]
+
+[project]
+name = 'raycast'
+version = '0.1.0'
+authors = ['tfgl']

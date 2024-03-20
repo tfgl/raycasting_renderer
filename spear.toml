@@ -1,10 +1,11 @@
 [dependencies.glfw]
-command = [ '-lglfw' ]
+commands = ['-lglfw']
 
 [dependencies.opengl]
-command = [ '-lGL' ]
+commands = ['-lGL']
 
 [project]
 name = 'raycast'
 version = '0.1.0'
+cc = 'g++'
 authors = ['tfgl']

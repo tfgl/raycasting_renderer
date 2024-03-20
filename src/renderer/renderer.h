@@ -16,3 +16,4 @@ public:
     void render(Level&, Player& player);
     bool should_close();
 };
+

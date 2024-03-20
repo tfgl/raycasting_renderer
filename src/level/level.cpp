@@ -2,9 +2,8 @@
 #include <cstdlib>
 #include <memory.h>
 
-Level::Level(size_t width, std::size_t height)
-: _width(width), _height(height) {
-    _map = (char*)malloc(sizeof(char) * width * height);
+Level::Level(size_t width, size_t height, char* map) {
+    set(width, height, map);
 }
 
 char Level::get(size_t x, size_t y) {
@@ -15,8 +14,14 @@ void Level::set(size_t x, size_t y, char c) {
     _map[y*_width+x] = c;
 }
 
-void Level::set(char* map) {
-    memcpy(_map, map, _width * _height);
+void Level::set(size_t width, size_t height, char* map) {
+    if( _map != NULL)
+        free(_map);
+
+    _width = width;
+    _height = height;
+    _map = (char*)malloc(sizeof(char) * width * height);
+    memcpy(_map, map, width * height);
     flip();
 }
 
@@ -34,4 +39,5 @@ void Level::flip() {
                tmp,
                _width);
     }
+    free(tmp);
 }

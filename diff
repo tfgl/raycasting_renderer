@@ -1,0 +1,315 @@
+diff --git a/spear.toml b/spear.toml
+index 1ce1de2..c30c821 100644
+--- a/spear.toml
++++ b/spear.toml
+@@ -1,10 +1,11 @@
+ [dependencies.glfw]
+-command = [ '-lglfw' ]
++commands = ['-lglfw']
+ 
+ [dependencies.opengl]
+-command = [ '-lGL' ]
++commands = ['-lGL']
+ 
+ [project]
+ name = 'raycast'
+ version = '0.1.0'
++cc = 'g++'
+ authors = ['tfgl']
+diff --git a/src/level/level.cpp b/src/level/level.cpp
+index b98e334..f00332e 100644
+--- a/src/level/level.cpp
++++ b/src/level/level.cpp
+@@ -2,9 +2,8 @@
+ #include <cstdlib>
+ #include <memory.h>
+ 
+-Level::Level(size_t width, std::size_t height)
+-: _width(width), _height(height) {
+-    _map = (char*)malloc(sizeof(char) * width * height);
++Level::Level(size_t width, size_t height, char* map) {
++    set(width, height, map);
+ }
+ 
+ char Level::get(size_t x, size_t y) {
+@@ -15,8 +14,14 @@ void Level::set(size_t x, size_t y, char c) {
+     _map[y*_width+x] = c;
+ }
+ 
+-void Level::set(char* map) {
+-    memcpy(_map, map, _width * _height);
++void Level::set(size_t width, size_t height, char* map) {
++    if( _map != NULL)
++        free(_map);
++
++    _width = width;
++    _height = height;
++    _map = (char*)malloc(sizeof(char) * width * height);
++    memcpy(_map, map, width * height);
+     flip();
+ }
+ 
+@@ -34,4 +39,5 @@ void Level::flip() {
+                tmp,
+                _width);
+     }
++    free(tmp);
+ }
+diff --git a/src/level/level.h b/src/level/level.h
+index 40b3f73..556bc66 100644
+--- a/src/level/level.h
++++ b/src/level/level.h
+@@ -1,18 +1,19 @@
+ #pragma once
+ 
+ #include "type.h"
++#include <cstddef>
+ 
+ class Level {
+-    char* _map;
++    char* _map = NULL;
+ 
+     void flip();
+ 
+ public:
+     size_t _width, _height;
+ 
+-    Level(size_t width, size_t height);
++    Level(size_t width, size_t height, char* map);
+ 
+     char get(size_t x, size_t y);
+     void set(size_t x, size_t y, char c);
+-    void set(char* map);
++    void set(size_t width, size_t height, char* map);
+ };
+diff --git a/src/logger/logger.cpp b/src/logger/logger.cpp
+deleted file mode 100644
+index 5dcb50d..0000000
+--- a/src/logger/logger.cpp
++++ /dev/null
+@@ -1,12 +0,0 @@
+-#include "logger.h"
+-
+-Logger::Logger(): output(std::ofstream("wolfenstein_like.log")) {}
+-
+-Logger& Logger::log() {
+-    static Logger logger;
+-    return logger;
+-}
+-
+-void Logger::write(std::string msg) {
+-    log().output << msg << std::endl;
+-}
+diff --git a/src/logger/logger.h b/src/logger/logger.h
+deleted file mode 100644
+index 27fe080..0000000
+--- a/src/logger/logger.h
++++ /dev/null
+@@ -1,21 +0,0 @@
+-#pragma once
+-
+-#include <fstream>
+-#include <iostream>
+-#include <ostream>
+-#include <string>
+-
+-class Logger {
+-    Logger();
+-    std::ofstream output;
+-
+-public:
+-    static Logger& log();
+-    static void write(std::string msg);
+-};
+-
+-template<class T>
+-Logger& operator<<(Logger& log, const T& msg) {
+-    log << msg;
+-    return log;
+-}
+diff --git a/src/main.cpp b/src/main.cpp
+index 7e78ee1..fcad16b 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -3,18 +3,29 @@
+ 
+ int main(int argc, char* argv[]) {
+     Renderer renderer;
+-    Player player({5.5, 5.5}, PI/2, 75.0 * PI*2 / 360);
+-    Level level(10, 10);
+-    level.set("##########"
+-              "#   #    #"
+-              "# ###    #"
+-              "# # #    #"
+-              "#        #"
+-              "# #      #"
+-              "#        #"
+-              "#    #   #"
+-              "#        #"
+-              "##########");
++    //                           75.0d = 1.309
++    Player player({2.5, 17}, -PI/2, 1.309);
++    Level level(22, 22, // sligthly bigger dimension than the level itself avoid artifacts when outside the boundaries
++              " #################### "
++              " #   #              # "
++              " # ###              # "
++              " # # #              # "
++              " #                  # "
++              " # #                # "
++              " #                  # "
++              " #    #             # "
++              " #                  # "
++              " #                  # "
++              " ################## # "
++              " #  #     #   #     # "
++              " #  # # #   # #  #  # "
++              " #  # # ##### #  #  # "
++              " #  # #  #       #  # "
++              " #  # #### #######  # "
++              " #  #      #        # "
++              " #  # #### #  ####### "
++              " #         #        # "
++              " ################## # ");
+ 
+     double xpos, ypos;
+     glfwGetCursorPos(renderer._window, &xpos, &ypos);
+@@ -42,7 +53,14 @@ int main(int argc, char* argv[]) {
+         if (glfwGetKey(renderer._window, GLFW_KEY_E) == GLFW_PRESS) {
+             player.turn( -PI/100 );
+         }
+-        player.turn (-(PI/1000) * xpos);
++        player.turn(-(PI/1000) * xpos);
++
++        player._pitch += PI * ypos/1000;
++        if (player._pitch > PI) {
++            player._pitch = PI;
++        } else if (player._pitch < -PI) {
++            player._pitch = -PI;
++        }
+ 
+         renderer.render(level, player);
+ 
+diff --git a/src/player/player.cpp b/src/player/player.cpp
+index 4339b37..abb928e 100644
+--- a/src/player/player.cpp
++++ b/src/player/player.cpp
+@@ -1,28 +1,39 @@
+ #include "player.h"
+ 
++void rotate_v2f(v2f& v, radian angle) {
++    v2f rot {std::cos(angle), std::sin(angle)};
++    v = {
++        v.x * rot.x - v.y * rot.y,
++        rot.x * v.y + rot.y * v.x
++    };
++}
++
+ Player::Player(v2f coord, radian rotation, radian fov)
+-: _coord(coord), _rotation(rotation), _fov(fov) {}
++: _coord(coord), _rotation(rotation), _fov(fov) {
++    update_velocity();
++}
+ 
+ void Player::forward() {
+-    _coord = _coord + velocity(_rotation);
++    _coord = _coord + _velocity;
+ }
+ 
+ void Player::backward() {
+-    _coord = _coord - velocity(_rotation);
++    _coord = _coord - _velocity;
+ }
+ 
+ void Player::left() {
+-    _coord = _coord + velocity(_rotation + PI/2);
++    _coord = _coord + v2f{-_velocity.y, _velocity.x};
+ }
+ 
+ void Player::right() {
+-    _coord = _coord - velocity(_rotation + PI/2);
++    _coord = _coord - v2f{-_velocity.y, _velocity.x};
+ }
+ 
+ void Player::turn(radian angle) {
+     _rotation += angle;
++    update_velocity();
+ }
+ 
+-v2f Player::velocity(radian angle) {
+-    return v2f{std::cos(angle), std::sin(angle)} / speed;
++void Player::update_velocity() {
++    _velocity = v2f{std::cos(_rotation), std::sin(_rotation)} * _speed;
+ }
+diff --git a/src/player/player.h b/src/player/player.h
+index b93ce14..77449b6 100644
+--- a/src/player/player.h
++++ b/src/player/player.h
+@@ -3,15 +3,16 @@
+ #include "type.h"
+ 
+ class Player {
+-    v2f velocity(radian angle);
++    void update_velocity();
+ 
+ public:
+     enum MVT_DIR {UP, LEFT, DOWN, RIGHT};
+ 
+-    radian _rotation;
++    radian _rotation, _pitch = 0;
+     radian _fov;
+     v2f _coord;
+-    float speed = 20;
++    float _speed = 0.05;
++    v2f _velocity;
+ 
+     Player(v2f coord, radian rotation, radian fov);
+     void forward();
+diff --git a/src/renderer/renderer.cpp b/src/renderer/renderer.cpp
+index 96eacb9..9a5cb5a 100644
+--- a/src/renderer/renderer.cpp
++++ b/src/renderer/renderer.cpp
+@@ -1,6 +1,5 @@
+ #include "renderer.h"
+ 
+-#include "logger/logger.h"
+ #include "caster/caster.h"
+ 
+ void render_rect(double x, double y, double w, double h) {
+@@ -23,8 +22,7 @@ Renderer::Renderer() {
+     _width = 1920;
+     _height = 1080;
+ 
+-    if(!glfwInit())
+-        Logger::write("[ERR] [Renderer::Renderer]: glfwInit failed");
++    if(!glfwInit()) {}
+ 
+     _window = glfwCreateWindow(_width, _height, "raycaster", glfwGetPrimaryMonitor(), NULL);
+     glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+@@ -46,19 +44,23 @@ void Renderer::render_level3d(Player& player, Level& level) {
+     double max_dst = level._width + level._height;
+ 
+     glColor3f(0.3, 0.6, 0.9);
+-    render_rect(-1, 1, 4, 2);
++    //glColor3f(0.1, 0.1, 0.1);
++    render_rect(0,  1, 2, 4);
++
+     glColor3f(0.1, 0.7, 0.4);
+-    render_rect(-1, -1, 4, 2);
++    //glColor3f(0.3, 0.3, 0.3);
++    render_rect(0, player._pitch-4, 2, 8);
+ 
+     for (int ray = 0; ray < n_ray + 1; ray++) {
+         float dst = 0;
+         if( cast_ray(level, player._coord, ray_direction, max_dst, dst) ) {
+ 
+             float color_k = dst < 2 ? 2 : dst;
+-            glColor3f(0.8/color_k, 0.6/color_k, 0.5/color_k);
++            //glColor3f(0.8/color_k, 0.6/color_k, 0.5/color_k);
++            glColor3f(0.8/color_k, 0.8/color_k, 0.8/color_k);
+ 
+             float x = -2*(float(ray) / n_ray)+1,
+-                  y = 0,
++                  y = player._pitch,
+                   w = 2.0/n_ray,
+                   h = 2.0/(dst*std::cos(player._rotation - ray_direction));
+ 

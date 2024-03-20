@@ -1,7 +1,7 @@
 #include "renderer.h"
 
-#include "logger/logger.h"
 #include "caster/caster.h"
+#include <GL/gl.h>
 
 void render_rect(double x, double y, double w, double h) {
     glBegin(GL_QUADS);
@@ -23,8 +23,7 @@ Renderer::Renderer() {
     _width = 1920;
     _height = 1080;
 
-    if(!glfwInit())
-        Logger::write("[ERR] [Renderer::Renderer]: glfwInit failed");
+    if(!glfwInit()) {}
 
     _window = glfwCreateWindow(_width, _height, "raycaster", glfwGetPrimaryMonitor(), NULL);
     glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -46,19 +45,23 @@ void Renderer::render_level3d(Player& player, Level& level) {
     double max_dst = level._width + level._height;
 
     glColor3f(0.3, 0.6, 0.9);
-    render_rect(-1, 1, 4, 2);
+    //glColor3f(0.1, 0.1, 0.1);
+    render_rect(0,  1, 2, 4);
+
     glColor3f(0.1, 0.7, 0.4);
-    render_rect(-1, -1, 4, 2);
+    //glColor3f(0.3, 0.3, 0.3);
+    render_rect(0, player._pitch-4, 2, 8);
 
     for (int ray = 0; ray < n_ray + 1; ray++) {
         float dst = 0;
         if( cast_ray(level, player._coord, ray_direction, max_dst, dst) ) {
 
             float color_k = dst < 2 ? 2 : dst;
-            glColor3f(0.8/color_k, 0.6/color_k, 0.5/color_k);
+            //glColor3f(0.8/color_k, 0.6/color_k, 0.5/color_k);
+            glColor3f(0.8/color_k, 0.8/color_k, 0.8/color_k);
 
             float x = -2*(float(ray) / n_ray)+1,
-                  y = 0,
+                  y = player._pitch,
                   w = 2.0/n_ray,
                   h = 2.0/(dst*std::cos(player._rotation - ray_direction));
 
